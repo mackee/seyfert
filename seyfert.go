@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/refactor/rename"
-
-	pp "gopkg.in/pp.v2"
 )
 
 type Options struct {
@@ -45,36 +43,9 @@ func Render(from string, to string, binds Binds, fieldsSet FieldsSet) ([]byte, e
 
 	var rps []renameParam
 	for _, decl := range f.Decls {
-		switch t := decl.(type) {
-		case *ast.FuncDecl:
-			if !strings.HasPrefix(t.Doc.Text(), "+seyfert") {
-				continue
-			}
-			//bindFunc(t, binds)
-			if binded, ok := tryBindName(t.Name.Name, binds); ok {
-				rps = append(rps, renameParam{
-					offset: fmt.Sprintf("%s:#%d", to, t.Pos()),
-					to:     binded,
-				})
-			}
-		case *ast.GenDecl:
-			if !strings.HasPrefix(t.Doc.Text(), "+seyfert") {
-				continue
-			}
-			for _, spec := range t.Specs {
-				typeSpec, isType := spec.(*ast.TypeSpec)
-				if !isType {
-					continue
-				}
-				if binded, ok := tryBindName(typeSpec.Name.Name, binds); ok {
-					rps = append(rps, renameParam{
-						offset: fmt.Sprintf("%s:#%d", to, typeSpec.Pos()),
-						to:     binded,
-					})
-				}
-			}
-		default:
-			continue
+		_rps := genDeclReanmeParam(decl, binds, to)
+		if len(_rps) > 0 {
+			rps = append(rps, _rps...)
 		}
 	}
 
@@ -121,39 +92,57 @@ func tryBindName(name string, binds Binds) (string, bool) {
 	return name, ok
 }
 
-func bindType(t *ast.TypeSpec, binds Binds) {
-	if binded, ok := tryBindName(t.Name.Name, binds); ok {
-		t.Name.Name = binded
+func genDeclReanmeParam(decl ast.Decl, binds Binds, filename string) []renameParam {
+	var rps []renameParam
+
+	switch t := decl.(type) {
+	case *ast.FuncDecl:
+		if !strings.HasPrefix(t.Doc.Text(), "+seyfert") {
+			return nil
+		}
+		rp := genFuncRenameParam(t, binds, filename)
+		if rp != nil {
+			rps = append(rps, *rp)
+		}
+	case *ast.GenDecl:
+		if !strings.HasPrefix(t.Doc.Text(), "+seyfert") {
+			return nil
+		}
+		for _, spec := range t.Specs {
+			typeSpec, isType := spec.(*ast.TypeSpec)
+			if !isType {
+				return nil
+			}
+			_rps := genTypeRenameParams(typeSpec, binds, filename)
+			if len(_rps) > 0 {
+				rps = append(rps, _rps...)
+			}
+		}
+	default:
+		return nil
 	}
+
+	return rps
 }
 
-func bindFunc(t *ast.FuncDecl, binds Binds) {
+func genFuncRenameParam(t *ast.FuncDecl, binds Binds, filename string) *renameParam {
 	if binded, ok := tryBindName(t.Name.Name, binds); ok {
-		t.Name.Name = binded
-	}
-
-	if t.Recv != nil {
-		pp.Println(t.Recv)
-		for _, field := range t.Recv.List {
-			ident, isIdent := field.Type.(*ast.Ident)
-			if !isIdent {
-				continue
-			}
-			if binded, ok := tryBindName(ident.Name, binds); ok {
-				ident.Name = binded
-			}
+		return &renameParam{
+			offset: fmt.Sprintf("%s:#%d", filename, t.Pos()),
+			to:     binded,
 		}
 	}
+	return nil
+}
 
-	if t.Type.Params.NumFields() > 0 {
-		for _, field := range t.Type.Params.List {
-			ident, isIdent := field.Type.(*ast.Ident)
-			if !isIdent {
-				continue
-			}
-			if binded, ok := tryBindName(ident.Name, binds); ok {
-				ident.Name = binded
-			}
-		}
+func genTypeRenameParams(t *ast.TypeSpec, binds Binds, filename string) []renameParam {
+	var rps []renameParam
+	if binded, ok := tryBindName(t.Name.Name, binds); ok {
+		rps = append(rps, renameParam{
+			offset: fmt.Sprintf("%s:#%d", filename, t.Pos()),
+			to:     binded,
+		})
 	}
+
+	return rps
 }
