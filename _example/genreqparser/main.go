@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -10,7 +11,7 @@ import (
 func main() {
 	binds := seyfert.Binds{
 		"PATH":      "Root",
-		"ROUTEPATH": "/",
+		"ROUTEPATH": "/root",
 	}
 	fieldsSet := seyfert.FieldsSet{
 		"RequestFields": seyfert.Fields{
@@ -33,7 +34,7 @@ func main() {
 			},
 		},
 	}
-	tmplPath, err := filepath.Abs("./tmpl/reqparser.tmpl.go")
+	tmpl, err := ioutil.ReadFile("./tmpl/reqparser.tmpl.go")
 	if err != nil {
 		panic(err)
 	}
@@ -41,7 +42,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	bs, err := seyfert.Render(tmplPath, generatePath, binds, fieldsSet, "reqparser")
+	bs, err := seyfert.Render(tmpl, generatePath, binds, fieldsSet, "reqparser")
 	if err != nil {
 		panic(err)
 	}

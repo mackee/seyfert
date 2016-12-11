@@ -56,9 +56,14 @@ type renameParam struct {
 	to     string
 }
 
-func Render(from string, to string, binds Binds, fieldsSet FieldsSet, packageName string) ([]byte, error) {
+func Render(tmpl []byte, to string, binds Binds, fieldsSet FieldsSet, packageName string) ([]byte, error) {
+	err := ioutil.WriteFile(to, tmpl, 0644)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot write destination file error")
+	}
+
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, from, nil, parser.ParseComments)
+	f, err := parser.ParseFile(fset, to, nil, parser.ParseComments)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail parsing error")
 	}
@@ -71,7 +76,7 @@ func Render(from string, to string, binds Binds, fieldsSet FieldsSet, packageNam
 		}
 	}
 
-	tof, err := os.Create(to)
+	tof, err := os.OpenFile(to, os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail create destination file error")
 	}
@@ -113,7 +118,7 @@ func tryBindName(name string, binds Binds) (string, bool) {
 		}
 		if strings.Contains(name, "_"+key+"_") {
 			ok = true
-			name = strings.Replace(name, "_"+key+"_", strings.Title(binded), -1)
+			name = strings.Replace(name, "_"+key+"_", binded, -1)
 		}
 	}
 
@@ -194,7 +199,7 @@ func replaceLiteralInFunc(filename string, binds Binds) error {
 		}
 	}
 
-	tof, err := os.OpenFile(filename, os.O_RDWR, 0644)
+	tof, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return errors.Wrap(err, "cannot open error")
 	}
