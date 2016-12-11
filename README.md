@@ -5,10 +5,10 @@
 
 ## Table of Contents
 
-* [Install](https://github.com/mackee/blob/master/README.md#Install)
-* [Usage](https://github.com/mackee/blob/master/README.md#Usage)
-* [Contribute](https://github.com/mackee/blob/master/README.md#Contribute)
-* [License](https://github.com/mackee/blob/master/README.md#License)
+* [Install](https://github.com/mackee/seyfert/blob/master/README.md#Install)
+* [Usage](https://github.com/mackee/seyfert/blob/master/README.md#Usage)
+* [Contribute](https://github.com/mackee/seyfert/blob/master/README.md#Contribute)
+* [License](https://github.com/mackee/seyfert/blob/master/README.md#License)
 
 ## Install
 
@@ -83,7 +83,7 @@ func (t Person) String() string {
 }
 ```
 
-See also: https://github.com/mackee/blob/master/seyfert/_example/genreqparser
+See also: https://github.com/mackee/seyfert/blob/master/_example/genreqparser
 
 ## Contribute
 
