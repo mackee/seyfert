@@ -56,16 +56,16 @@ type renameParam struct {
 	to     string
 }
 
-func Render(tmpl []byte, to string, binds Binds, fieldsSet FieldsSet, packageName string) ([]byte, error) {
+func Render(tmpl []byte, to string, binds Binds, fieldsSet FieldsSet, packageName string) error {
 	err := ioutil.WriteFile(to, tmpl, 0644)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot write destination file error")
+		return errors.Wrap(err, "cannot write destination file error")
 	}
 
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, to, nil, parser.ParseComments)
 	if err != nil {
-		return nil, errors.Wrap(err, "fail parsing error")
+		return errors.Wrap(err, "fail parsing error")
 	}
 
 	var rps []renameParam
@@ -78,35 +78,35 @@ func Render(tmpl []byte, to string, binds Binds, fieldsSet FieldsSet, packageNam
 
 	tof, err := os.OpenFile(to, os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, errors.Wrap(err, "fail create destination file error")
+		return errors.Wrap(err, "fail create destination file error")
 	}
 	defer tof.Close()
 
 	f.Name.Name = packageName
 	err = format.Node(tof, fset, f)
 	if err != nil {
-		return nil, errors.Wrap(err, "fail write template stage file error")
+		return errors.Wrap(err, "fail write template stage file error")
 	}
 	tof.Close()
 
 	for _, p := range rps {
 		fmt.Println(p.offset, "->", p.to)
 		if err := rename.Main(&build.Default, p.offset, "", p.to); err != nil {
-			return nil, errors.Wrap(err, "fail rename error")
+			return errors.Wrap(err, "fail rename error")
 		}
 	}
 
 	err = replaceExpandAnnotation(to, fieldsSet)
 	if err != nil {
-		return nil, errors.Wrap(err, "expand annotation error")
+		return errors.Wrap(err, "expand annotation error")
 	}
 
 	err = replaceLiteralInFunc(to, binds)
 	if err != nil {
-		return nil, errors.Wrap(err, "replace literal error")
+		return errors.Wrap(err, "replace literal error")
 	}
 
-	return nil, nil
+	return nil
 }
 
 func tryBindName(name string, binds Binds) (string, bool) {

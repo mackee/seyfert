@@ -2,7 +2,6 @@ package main
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	"github.com/mackee/seyfert"
@@ -42,10 +41,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	bs, err := seyfert.Render(tmpl, generatePath, binds, fieldsSet, "reqparser")
+	err = seyfert.Render(tmpl, generatePath, binds, fieldsSet, "reqparser")
 	if err != nil {
 		panic(err)
 	}
-
-	os.Stdout.Write(bs)
 }
