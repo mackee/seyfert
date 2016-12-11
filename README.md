@@ -5,10 +5,10 @@
 
 ## Table of Contents
 
-* [Install](https://github.com/mackee/seyfert/blob/master/README.md#Install)
-* [Usage](https://github.com/mackee/seyfert/blob/master/README.md#Usage)
-* [Contribute](https://github.com/mackee/seyfert/blob/master/README.md#Contribute)
-* [License](https://github.com/mackee/seyfert/blob/master/README.md#License)
+* [Install](https://github.com/mackee/seyfert/blob/master/README.md#install)
+* [Usage](https://github.com/mackee/seyfert/blob/master/README.md#usage)
+* [Contribute](https://github.com/mackee/seyfert/blob/master/README.md#contribute)
+* [License](https://github.com/mackee/seyfert/blob/master/README.md#license)
 
 ## Install
 
