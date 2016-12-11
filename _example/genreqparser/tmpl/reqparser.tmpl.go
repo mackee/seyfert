@@ -13,8 +13,8 @@ type PATH_Request struct {
 }
 
 //+seyfert
-func (req PATH_Request) String() string {
-	return "_PATH_"
+func (req PATH_Request) Path() string {
+	return "_ROUTEPATH_"
 }
 
 //+seyfert
@@ -55,5 +55,5 @@ func generate_PATH_Handler(h PATH_Handler) http.HandlerFunc {
 
 //+seyfert
 func Register_PATH_Handler(h PATH_Handler) {
-	http.HandleFunc("/", generate_PATH_Handler(h))
+	http.HandleFunc("_ROUTEPATH_", generate_PATH_Handler(h))
 }

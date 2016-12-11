@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/refactor/rename"
+
+	"github.com/pkg/errors"
 )
 
 type Options struct {
@@ -58,7 +60,7 @@ func Render(from string, to string, binds Binds, fieldsSet FieldsSet, packageNam
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, from, nil, parser.ParseComments)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fail parsing error")
 	}
 
 	var rps []renameParam
@@ -71,27 +73,32 @@ func Render(from string, to string, binds Binds, fieldsSet FieldsSet, packageNam
 
 	tof, err := os.Create(to)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fail create destination file error")
 	}
 	defer tof.Close()
 
 	f.Name.Name = packageName
 	err = format.Node(tof, fset, f)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fail write template stage file error")
 	}
 	tof.Close()
 
 	for _, p := range rps {
 		fmt.Println(p.offset, "->", p.to)
 		if err := rename.Main(&build.Default, p.offset, "", p.to); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "fail rename error")
 		}
 	}
 
 	err = replaceExpandAnnotation(to, fieldsSet)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "expand annotation error")
+	}
+
+	err = replaceLiteralInFunc(to, binds)
+	if err != nil {
+		return nil, errors.Wrap(err, "replace literal error")
 	}
 
 	return nil, nil
@@ -147,11 +154,55 @@ func genDeclReanmeParam(decl ast.Decl, binds Binds, filename string) []renamePar
 }
 
 func genFuncRenameParam(t *ast.FuncDecl, binds Binds, filename string) *renameParam {
+	var rp *renameParam
 	if binded, ok := tryBindName(t.Name.Name, binds); ok {
-		return &renameParam{
+		rp = &renameParam{
 			offset: fmt.Sprintf("%s:#%d", filename, t.Pos()),
 			to:     binded,
 		}
+	}
+
+	return rp
+}
+
+func replaceLiteralInFunc(filename string, binds Binds) error {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		return errors.Wrap(err, "cannot pasing error")
+	}
+
+	for _, decl := range f.Decls {
+		funcDecl, isFunc := decl.(*ast.FuncDecl)
+		if !isFunc {
+			continue
+		}
+		if !strings.HasPrefix(funcDecl.Doc.Text(), "+seyfert") {
+			continue
+		}
+
+		for _, stmt := range funcDecl.Body.List {
+			ast.Inspect(stmt, func(node ast.Node) bool {
+				lit, ok := node.(*ast.BasicLit)
+				if ok {
+					if binded, ok := tryBindName(lit.Value, binds); ok {
+						lit.Value = binded
+					}
+				}
+				return true
+			})
+		}
+	}
+
+	tof, err := os.OpenFile(filename, os.O_RDWR, 0644)
+	if err != nil {
+		return errors.Wrap(err, "cannot open error")
+	}
+	defer tof.Close()
+
+	err = format.Node(tof, fset, f)
+	if err != nil {
+		return errors.Wrap(err, "cannot write node error")
 	}
 	return nil
 }
@@ -195,12 +246,12 @@ func replaceExpandAnnotation(filename string, fieldsSet FieldsSet) error {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "cannot parsing error")
 	}
 
 	bf, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil
+		return errors.Wrap(err, "cannnot read file error")
 	}
 
 	var rps replaceParams
@@ -236,7 +287,7 @@ func replaceExpandAnnotation(filename string, fieldsSet FieldsSet) error {
 
 	out, err := format.Source(buf.Bytes())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "fail node to source error")
 	}
 
 	ioutil.WriteFile(filename, out, 0644)

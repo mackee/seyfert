@@ -14,8 +14,8 @@ type RootRequest struct {
 }
 
 //+seyfert
-func (req RootRequest) String() string {
-	return "_PATH_"
+func (req RootRequest) Path() string {
+	return "/"
 }
 
 //+seyfert
@@ -57,4 +57,6 @@ func generateRootHandler(h RootHandler) http.HandlerFunc {
 //+seyfert
 func RegisterRootHandler(h RootHandler) {
 	http.HandleFunc("/", generateRootHandler(h))
+}
+teRootHandler(h))
 }

@@ -9,7 +9,8 @@ import (
 
 func main() {
 	binds := seyfert.Binds{
-		"PATH": "Root",
+		"PATH":      "Root",
+		"ROUTEPATH": "/",
 	}
 	fieldsSet := seyfert.FieldsSet{
 		"RequestFields": seyfert.Fields{
