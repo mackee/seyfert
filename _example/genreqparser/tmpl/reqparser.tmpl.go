@@ -9,7 +9,7 @@ import (
 
 //+seyfert
 type PATH_Request struct {
-	//+expland RequestFields
+	//+expand RequestFields
 }
 
 //+seyfert
@@ -18,7 +18,7 @@ func (req PATH_Request) String() string {
 }
 
 //+seyfert
-type PATH_Response struct {
+type PATH_Response struct { //hgehoge
 	//+expand ResponseFields
 }
 
@@ -31,7 +31,13 @@ func generate_PATH_Handler(h PATH_Handler) http.HandlerFunc {
 		enc := json.NewEncoder(w)
 		dec := schema.NewDecoder()
 		req := PATH_Request{}
-		err := dec.Decode(req, r.Form)
+		err := r.ParseForm()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			enc.Encode(ErrorResponse{err.Error()})
+			return
+		}
+		err = dec.Decode(&req, r.Form)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			enc.Encode(ErrorResponse{err.Error()})
@@ -48,6 +54,6 @@ func generate_PATH_Handler(h PATH_Handler) http.HandlerFunc {
 }
 
 //+seyfert
-func register_PATH_Handler(h PATH_Handler) {
+func Register_PATH_Handler(h PATH_Handler) {
 	http.HandleFunc("/", generate_PATH_Handler(h))
 }

@@ -8,30 +8,37 @@ import (
 )
 
 //+seyfert
-type rootRequest struct {
-	//+expland RequestFields
+type RootRequest struct {
+	HogeID int `schema:"hoge_id"`
+	Page   int `schema:"page"`
 }
 
 //+seyfert
-func (req rootRequest) String() string {
+func (req RootRequest) String() string {
 	return "_PATH_"
 }
 
 //+seyfert
-type rootResponse struct {
-	//+expand ResponseFields
+type RootResponse struct { //hgehoge
+	HogeID int `json:"hoge_id"`
 }
 
 //+seyfert
-type rootHandler func(rootRequest) (rootResponse, error)
+type RootHandler func(RootRequest) (RootResponse, error)
 
 //+seyfert
-func generateRootHandler(h rootHandler) http.HandlerFunc {
+func generateRootHandler(h RootHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
 		dec := schema.NewDecoder()
-		req := rootRequest{}
-		err := dec.Decode(req, r.Form)
+		req := RootRequest{}
+		err := r.ParseForm()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			enc.Encode(ErrorResponse{err.Error()})
+			return
+		}
+		err = dec.Decode(&req, r.Form)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			enc.Encode(ErrorResponse{err.Error()})
@@ -48,6 +55,6 @@ func generateRootHandler(h rootHandler) http.HandlerFunc {
 }
 
 //+seyfert
-func registerRootHandler(h rootHandler) {
+func RegisterRootHandler(h RootHandler) {
 	http.HandleFunc("/", generateRootHandler(h))
 }

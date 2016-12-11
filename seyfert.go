@@ -1,13 +1,16 @@
 package seyfert
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/format"
 	"go/parser"
 	"go/token"
-	"io"
+	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/refactor/rename"
@@ -23,10 +26,27 @@ type FieldsSet map[string]Fields
 
 type Fields []Field
 
+func (fs Fields) String() string {
+	fss := make([]string, 0, len(fs))
+	for _, f := range fs {
+		fss = append(fss, f.String())
+	}
+
+	return strings.Join(fss, "\n")
+}
+
 type Field struct {
 	Name string
 	Type string
 	Tag  string
+}
+
+func (f Field) String() string {
+	if f.Tag == "" {
+		return f.Name + " " + f.Type
+	}
+
+	return f.Name + " " + f.Type + " `" + f.Tag + "`"
 }
 
 type renameParam struct {
@@ -34,7 +54,7 @@ type renameParam struct {
 	to     string
 }
 
-func Render(from string, to string, binds Binds, fieldsSet FieldsSet) ([]byte, error) {
+func Render(from string, to string, binds Binds, fieldsSet FieldsSet, packageName string) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, from, nil, parser.ParseComments)
 	if err != nil {
@@ -55,13 +75,8 @@ func Render(from string, to string, binds Binds, fieldsSet FieldsSet) ([]byte, e
 	}
 	defer tof.Close()
 
-	fromf, err := os.Open(from)
-	if err != nil {
-		return nil, err
-	}
-	defer fromf.Close()
-
-	_, err = io.Copy(tof, fromf)
+	f.Name.Name = packageName
+	err = format.Node(tof, fset, f)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +88,12 @@ func Render(from string, to string, binds Binds, fieldsSet FieldsSet) ([]byte, e
 			return nil, err
 		}
 	}
+
+	err = replaceExpandAnnotation(to, fieldsSet)
+	if err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
@@ -145,4 +166,80 @@ func genTypeRenameParams(t *ast.TypeSpec, binds Binds, filename string) []rename
 	}
 
 	return rps
+}
+
+type replaceParam struct {
+	pos      int
+	end      int
+	replaced []byte
+}
+
+type replaceParams []replaceParam
+
+func (rp replaceParams) Len() int {
+	return len(rp)
+}
+
+func (rp replaceParams) Less(i, j int) bool {
+	if rp[i].pos > rp[j].pos {
+		return false
+	}
+	return true
+}
+
+func (rp replaceParams) Swap(i, j int) {
+	rp[j], rp[i] = rp[i], rp[j]
+}
+
+func replaceExpandAnnotation(filename string, fieldsSet FieldsSet) error {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	bf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil
+	}
+
+	var rps replaceParams
+	cmap := ast.NewCommentMap(fset, f, f.Comments)
+	for _, cgg := range cmap {
+		for _, cg := range cgg {
+			for _, c := range cg.List {
+				if !strings.HasPrefix(c.Text, "//+expand") {
+					continue
+				}
+				fieldsName := strings.TrimPrefix(c.Text, "//+expand ")
+				fields, ok := fieldsSet[fieldsName]
+				if ok {
+					rps = append(rps, replaceParam{
+						pos:      int(c.Pos()),
+						end:      int(c.End()),
+						replaced: []byte(fields.String()),
+					})
+				}
+			}
+		}
+	}
+
+	sort.Sort(rps)
+	foffset := 0
+	buf := bytes.NewBuffer(make([]byte, 0, len(bf)))
+	for _, rp := range rps {
+		buf.Write(bf[foffset : rp.pos-1])
+		buf.Write(rp.replaced)
+		foffset = rp.end
+	}
+	buf.Write(bf[foffset:])
+
+	out, err := format.Source(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	ioutil.WriteFile(filename, out, 0644)
+
+	return nil
 }
